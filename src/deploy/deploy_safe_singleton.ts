@@ -1,5 +1,6 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { ethers } from "ethers";
 
 const deploy: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment,
@@ -13,6 +14,7 @@ const deploy: DeployFunction = async function (
     args: [],
     log: true,
     deterministicDeployment: true,
+    gasPrice: ethers.utils.parseUnits("150", "gwi") // klaytn
   });
 };
 

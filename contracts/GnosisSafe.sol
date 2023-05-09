@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
+pragma abicoder v2;
 
 import "./base/ModuleManager.sol";
 import "./base/OwnerManager.sol";
@@ -17,16 +18,16 @@ import "./external/GnosisSafeMath.sol";
 /// @author Stefan George - <stefan@gnosis.io>
 /// @author Richard Meissner - <richard@gnosis.io>
 contract GnosisSafe is
-    EtherPaymentFallback,
-    Singleton,
-    ModuleManager,
-    OwnerManager,
-    SignatureDecoder,
-    SecuredTokenTransfer,
-    ISignatureValidatorConstants,
-    FallbackManager,
-    StorageAccessible,
-    GuardManager
+EtherPaymentFallback,
+Singleton,
+ModuleManager,
+OwnerManager,
+SignatureDecoder,
+SecuredTokenTransfer,
+ISignatureValidatorConstants,
+FallbackManager,
+StorageAccessible,
+GuardManager
 {
     using GnosisSafeMath for uint256;
 
@@ -48,12 +49,14 @@ contract GnosisSafe is
     event ExecutionFailure(bytes32 txHash, uint256 payment);
     event ExecutionSuccess(bytes32 txHash, uint256 payment);
 
-    uint256 public nonce;
+    uint256 public nonce; // deprecated
     bytes32 private _deprecatedDomainSeparator;
     // Mapping to keep track of all message hashes that have been approve by ALL REQUIRED owners
     mapping(bytes32 => uint256) public signedMessages;
     // Mapping to keep track of all hashes (message or transaction) that have been approve by ANY owners
     mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
+
+    mapping(uint256 => bool) isUsedNonce;
 
     // This constructor ensures that this contract can only be used as a master copy for Proxy contracts
     constructor() {
@@ -96,51 +99,33 @@ contract GnosisSafe is
         emit SafeSetup(msg.sender, _owners, _threshold, to, fallbackHandler);
     }
 
-    /// @dev Allows to execute a Safe transaction confirmed by required number of owners and then pays the account that submitted the transaction.
-    ///      Note: The fees are always transferred, even if the user transaction fails.
-    /// @param to Destination address of Safe transaction.
-    /// @param value Ether value of Safe transaction.
-    /// @param data Data payload of Safe transaction.
-    /// @param operation Operation type of Safe transaction.
-    /// @param safeTxGas Gas that should be used for the Safe transaction.
-    /// @param baseGas Gas costs that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
-    /// @param gasPrice Gas price that should be used for the payment calculation.
-    /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
-    /// @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-    /// @param signatures Packed signature data ({bytes32 r}{bytes32 s}{uint8 v})
+    struct TxLocalParams {
+        address to;
+        uint256 value;
+        bytes data;
+        Enum.Operation operation;
+        uint256 safeTxGas;
+        uint256 baseGas;
+        uint256 gasPrice;
+        address gasToken;
+        address payable refundReceiver;
+        uint256 nonce;
+    }
+
     function execTransaction(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address payable refundReceiver,
+        TxLocalParams memory params,
         bytes memory signatures
     ) public payable virtual returns (bool success) {
+        require(!isUsedNonce[params.nonce], "USED NONCE");
+
         bytes32 txHash;
         // Use scope here to limit variable lifetime and prevent `stack too deep` errors
         {
             bytes memory txHashData =
-                encodeTransactionData(
-                    // Transaction info
-                    to,
-                    value,
-                    data,
-                    operation,
-                    safeTxGas,
-                    // Payment info
-                    baseGas,
-                    gasPrice,
-                    gasToken,
-                    refundReceiver,
-                    // Signature info
-                    nonce
-                );
+            encodeTransactionData(
+                params
+            );
             // Increase nonce and execute transaction.
-            nonce++;
             txHash = keccak256(txHashData);
             checkSignatures(txHash, txHashData, signatures);
         }
@@ -148,18 +133,18 @@ contract GnosisSafe is
         {
             if (guard != address(0)) {
                 Guard(guard).checkTransaction(
-                    // Transaction info
-                    to,
-                    value,
-                    data,
-                    operation,
-                    safeTxGas,
-                    // Payment info
-                    baseGas,
-                    gasPrice,
-                    gasToken,
-                    refundReceiver,
-                    // Signature info
+                // Transaction info
+                    params.to,
+                    params.value,
+                    params.data,
+                    params.operation,
+                    params.safeTxGas,
+                // Payment info
+                    params.baseGas,
+                    params.gasPrice,
+                    params.gasToken,
+                    params.refundReceiver,
+                // Signature info
                     signatures,
                     msg.sender
                 );
@@ -167,21 +152,21 @@ contract GnosisSafe is
         }
         // We require some gas to emit the events (at least 2500) after the execution and some to perform code until the execution (500)
         // We also include the 1/64 in the check that is not send along with a call to counteract potential shortings because of EIP-150
-        require(gasleft() >= ((safeTxGas * 64) / 63).max(safeTxGas + 2500) + 500, "GS010");
+        require(gasleft() >= ((params.safeTxGas * 64) / 63).max(params.safeTxGas + 2500) + 500, "GS010");
         // Use scope here to limit variable lifetime and prevent `stack too deep` errors
         {
             uint256 gasUsed = gasleft();
             // If the gasPrice is 0 we assume that nearly all available gas can be used (it is always more than safeTxGas)
             // We only substract 2500 (compared to the 3000 before) to ensure that the amount passed is still higher than safeTxGas
-            success = execute(to, value, data, operation, gasPrice == 0 ? (gasleft() - 2500) : safeTxGas);
+            success = execute(params.to, params.value, params.data, params.operation, params.gasPrice == 0 ? (gasleft() - 2500) : params.safeTxGas);
             gasUsed = gasUsed.sub(gasleft());
             // If no safeTxGas and no gasPrice was set (e.g. both are 0), then the internal tx is required to be successful
             // This makes it possible to use `estimateGas` without issues, as it searches for the minimum gas where the tx doesn't revert
-            require(success || safeTxGas != 0 || gasPrice != 0, "GS013");
+            require(success || params.safeTxGas != 0 || params.gasPrice != 0, "GS013");
             // We transfer the calculated tx costs to the tx.origin to avoid sending it to intermediate contracts that have made calls
             uint256 payment = 0;
-            if (gasPrice > 0) {
-                payment = handlePayment(gasUsed, baseGas, gasPrice, gasToken, refundReceiver);
+            if (params.gasPrice > 0) {
+                payment = handlePayment(gasUsed, params.baseGas, params.gasPrice, params.gasToken, params.refundReceiver);
             }
             if (success) emit ExecutionSuccess(txHash, payment);
             else emit ExecutionFailure(txHash, payment);
@@ -191,6 +176,8 @@ contract GnosisSafe is
                 Guard(guard).checkAfterExecution(txHash, success);
             }
         }
+
+        isUsedNonce[params.nonce] = true;
     }
 
     function handlePayment(
@@ -279,7 +266,7 @@ contract GnosisSafe is
                 bytes memory contractSignature;
                 // solhint-disable-next-line no-inline-assembly
                 assembly {
-                    // The signature data for contract signatures is appended to the concatenated signatures and the offset is stored in s
+                // The signature data for contract signatures is appended to the concatenated signatures and the offset is stored in s
                     contractSignature := add(add(signatures, s), 0x20)
                 }
                 require(ISignatureValidator(currentOwner).isValidSignature(data, contractSignature) == EIP1271_MAGIC_VALUE, "GS024");
@@ -350,61 +337,28 @@ contract GnosisSafe is
         return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), this));
     }
 
-    /// @dev Returns the bytes that are hashed to be signed by owners.
-    /// @param to Destination address.
-    /// @param value Ether value.
-    /// @param data Data payload.
-    /// @param operation Operation type.
-    /// @param safeTxGas Gas that should be used for the safe transaction.
-    /// @param baseGas Gas costs for that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
-    /// @param gasPrice Maximum gas price that should be used for this transaction.
-    /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
-    /// @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-    /// @param _nonce Transaction nonce.
-    /// @return Transaction hash bytes.
     function encodeTransactionData(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address refundReceiver,
-        uint256 _nonce
+        TxLocalParams memory params
     ) public view returns (bytes memory) {
         bytes32 safeTxHash =
-            keccak256(
-                abi.encode(
-                    SAFE_TX_TYPEHASH,
-                    to,
-                    value,
-                    keccak256(data),
-                    operation,
-                    safeTxGas,
-                    baseGas,
-                    gasPrice,
-                    gasToken,
-                    refundReceiver,
-                    _nonce
-                )
-            );
+        keccak256(
+            abi.encode(
+                SAFE_TX_TYPEHASH,
+                params.to,
+                params.value,
+                keccak256(params.data),
+                params.operation,
+                params.safeTxGas,
+                params.baseGas,
+                params.gasPrice,
+                params.gasToken,
+                params.refundReceiver,
+                params.nonce
+            )
+        );
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), safeTxHash);
     }
 
-    /// @dev Returns hash to be signed by owners.
-    /// @param to Destination address.
-    /// @param value Ether value.
-    /// @param data Data payload.
-    /// @param operation Operation type.
-    /// @param safeTxGas Fas that should be used for the safe transaction.
-    /// @param baseGas Gas costs for data used to trigger the safe transaction.
-    /// @param gasPrice Maximum gas price that should be used for this transaction.
-    /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
-    /// @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-    /// @param _nonce Transaction nonce.
-    /// @return Transaction hash.
     function getTransactionHash(
         address to,
         uint256 value,
@@ -415,8 +369,8 @@ contract GnosisSafe is
         uint256 gasPrice,
         address gasToken,
         address refundReceiver,
-        uint256 _nonce
+        uint256 nonce
     ) public view returns (bytes32) {
-        return keccak256(encodeTransactionData(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, _nonce));
+        return keccak256(encodeTransactionData(TxLocalParams(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, payable(refundReceiver), nonce)));
     }
 }
