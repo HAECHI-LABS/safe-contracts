@@ -13,6 +13,7 @@ const deploy: DeployFunction = async function (
     args: [],
     log: true,
     deterministicDeployment: true,
+    // gasPrice: ethers.utils.parseUnits("150", "gwi") // klaytn
   });
 };
 

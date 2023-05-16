@@ -104,4 +104,22 @@ contract GnosisSafeProxyFactory {
         proxy = deployProxyWithNonce(_singleton, initializer, saltNonce);
         revert(string(abi.encodePacked(proxy)));
     }
+
+    function predictProxyAddress(
+        address _singleton,
+        bytes memory initializer,
+        uint256 saltNonce
+    ) public view returns (address) {
+        bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce));
+        bytes memory deploymentData = abi.encodePacked(type(GnosisSafeProxy).creationCode, uint256(uint160(_singleton)));
+
+        return computeAddress(salt, deploymentData, address(this));
+    }
+
+    function computeAddress(bytes32 salt, bytes memory bytecodeHash, address deployer) internal pure returns (address) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(bytecodeHash))
+        );
+        return address(uint160(uint256(hash)));
+    }
 }
