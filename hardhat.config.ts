@@ -39,6 +39,7 @@ if (["mainnet", "rinkeby", "kovan", "goerli"].includes(argv.network) && INFURA_K
 import "./src/tasks/local_verify"
 import "./src/tasks/deploy_contracts"
 import "./src/tasks/show_codesize"
+import "./src/tasks/misc"
 
 const primarySolidityVersion = SOLIDITY_VERSION || "0.7.6"
 const soliditySettings = !!SOLIDITY_SETTINGS ? JSON.parse(SOLIDITY_SETTINGS) : undefined
@@ -72,6 +73,18 @@ const userConfig: HardhatUserConfig = {
     mainnet: {
       ...sharedNetworkConfig,
       url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+    },
+    matic: {
+      ...sharedNetworkConfig,
+      url: `https://tn.henesis.io/polygon/mainnet?clientId=815fcd01324b8f75818a755a72557750`,
+    },
+    cypress: {
+      ...sharedNetworkConfig,
+      url: `https://tn.henesis.io/klaytn/mainnet?clientId=a481485a958f1b82ac310ec4eea27943`,
+    },
+    bora: {
+      ...sharedNetworkConfig,
+      url: `https://public-node.api.boraportal.io/bora/mainnet`,
     },
     xdai: {
       ...sharedNetworkConfig,
