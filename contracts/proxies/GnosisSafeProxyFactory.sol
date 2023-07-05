@@ -104,4 +104,30 @@ contract GnosisSafeProxyFactory {
         proxy = deployProxyWithNonce(_singleton, initializer, saltNonce);
         revert(string(abi.encodePacked(proxy)));
     }
+
+    /// @dev Allows to get the address for a new proxy contact created via `createProxyWithNonce`
+    /// @param _singleton Address of singleton contract.
+    /// @param initializer Payload for message call sent to new proxy contract.
+    /// @param saltNonce Nonce that will be used to generate the salt to calculate the address of the new proxy contract.
+    function predictProxyAddress(
+        address _singleton,
+        bytes memory initializer,
+        uint256 saltNonce
+    ) public view returns (address) {
+        bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce));
+        bytes memory deploymentData = abi.encodePacked(type(GnosisSafeProxy).creationCode, uint256(uint160(_singleton)));
+
+        return computeAddress(salt, deploymentData, address(this));
+    }
+
+    /// @dev Compute the addresses created using create2.
+    /// @param salt Random value.
+    /// @param bytecodeHash Initialization code of the contract to be created.
+    /// @param deployer Address to deploy the contract.
+    function computeAddress(bytes32 salt, bytes memory bytecodeHash, address deployer) internal pure returns (address) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(bytecodeHash))
+        );
+        return address(uint160(uint256(hash)));
+    }
 }
