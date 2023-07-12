@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
+pragma abicoder v2;
 
 import "../../common/Enum.sol";
 import "../../base/GuardManager.sol";
@@ -27,16 +28,7 @@ contract ReentrancyTransactionGuard is Guard {
     }
 
     function checkTransaction(
-        address,
-        uint256,
-        bytes memory,
-        Enum.Operation,
-        uint256,
-        uint256,
-        uint256,
-        address,
-        // solhint-disable-next-line no-unused-vars
-        address payable,
+        GnosisSafe.TxLocalParams memory,
         bytes memory,
         address
     ) external override {

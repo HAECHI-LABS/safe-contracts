@@ -56,7 +56,7 @@ GuardManager
     // Mapping to keep track of all hashes (message or transaction) that have been approve by ANY owners
     mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
 
-    mapping(uint256 => bool) isUsedNonce;
+    mapping(uint256 => uint256) isUsedNonce;
 
     // This constructor ensures that this contract can only be used as a master copy for Proxy contracts
     constructor() {
@@ -131,7 +131,7 @@ GuardManager
         TxLocalParams memory params,
         bytes memory signatures
     ) public payable virtual returns (bool success) {
-        require(!isUsedNonce[params.nonce], "USED NONCE");
+        require(isUsedNonce[params.nonce/256]&(1<<(params.nonce%256)) == 0, "USED NONCE");
 
         bytes32 txHash;
         // Use scope here to limit variable lifetime and prevent `stack too deep` errors
@@ -140,7 +140,7 @@ GuardManager
             encodeTransactionData(
                 params
             );
-            isUsedNonce[params.nonce] = true;
+            isUsedNonce[params.nonce/256] = isUsedNonce[params.nonce/256]|(1<<(params.nonce%256));
             txHash = keccak256(txHashData);
             checkSignatures(txHash, txHashData, signatures);
         }
@@ -148,17 +148,7 @@ GuardManager
         {
             if (guard != address(0)) {
                 Guard(guard).checkTransaction(
-                // Transaction info
-                    params.to,
-                    params.value,
-                    params.data,
-                    params.operation,
-                    params.safeTxGas,
-                // Payment info
-                    params.baseGas,
-                    params.gasPrice,
-                    params.gasToken,
-                    params.refundReceiver,
+                    params,
                 // Signature info
                     signatures,
                     msg.sender
@@ -387,29 +377,22 @@ GuardManager
     }
 
     /// @dev Returns hash to be signed by owners.
-    /// @param to Destination address.
-    /// @param value Ether value.
-    /// @param data Data payload.
-    /// @param operation Operation type.
-    /// @param safeTxGas Fas that should be used for the safe transaction.
-    /// @param baseGas Gas costs for data used to trigger the safe transaction.
-    /// @param gasPrice Maximum gas price that should be used for this transaction.
-    /// @param gasToken Token address (or 0 if ETH) that is used for the payment.
-    /// @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-    /// @param nonce Nonce with Random value
+    /// @param params The txLocalParams struct to update.
+    ///     The struct contains the following fields:
+    ///        - to Destination address of Safe transaction.
+    ///        - value Ether value of Safe transaction.
+    ///        - data Data payload of Safe transaction.
+    ///        - operation Operation type of Safe transaction.
+    ///        - safeTxGas Gas that should be used for the Safe transaction.
+    ///        - baseGas Gas costs that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
+    ///        - gasPrice Gas price that should be used for the payment calculation.
+    ///        - gasToken Token address (or 0 if ETH) that is used for the payment.
+    ///        - refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
+    ///        - nonce Nonce with Random value
     /// @return Transaction hash.
     function getTransactionHash(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address refundReceiver,
-        uint256 nonce
+        TxLocalParams memory params
     ) public view returns (bytes32) {
-        return keccak256(encodeTransactionData(TxLocalParams(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, payable(refundReceiver), nonce)));
+        return keccak256(encodeTransactionData(params));
     }
 }
