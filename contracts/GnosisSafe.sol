@@ -131,7 +131,8 @@ GuardManager
         TxLocalParams memory params,
         bytes memory signatures
     ) public payable virtual returns (bool success) {
-        require(isUsedNonce[params.nonce/256]&(1<<(params.nonce%256)) == 0, "USED NONCE");
+        uint256 storageNonce = isUsedNonce[params.nonce/256];
+        require(storageNonce&(1<<(params.nonce%256)) == 0, "USED NONCE");
 
         bytes32 txHash;
         // Use scope here to limit variable lifetime and prevent `stack too deep` errors
@@ -140,7 +141,7 @@ GuardManager
             encodeTransactionData(
                 params
             );
-            isUsedNonce[params.nonce/256] = isUsedNonce[params.nonce/256]|(1<<(params.nonce%256));
+            isUsedNonce[params.nonce/256] = storageNonce|(1<<(params.nonce%256));
             txHash = keccak256(txHashData);
             checkSignatures(txHash, txHashData, signatures);
         }
