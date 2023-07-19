@@ -396,4 +396,9 @@ GuardManager
     ) public view returns (bytes32) {
         return keccak256(encodeTransactionData(params));
     }
+
+    function canUseNonce(uint256 _nonce) public view returns (bool){
+        uint256 storageNonce = isUsedNonce[_nonce/256];
+        return storageNonce&(1<<(_nonce%256)) == 0;
+    }
 }
