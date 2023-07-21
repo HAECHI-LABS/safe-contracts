@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
+pragma abicoder v2;
 
 import "../../common/Enum.sol";
 import "../../base/GuardManager.sol";
@@ -32,16 +33,7 @@ contract DebugTransactionGuard is Guard {
     mapping(bytes32 => uint256) public txNonces;
 
     function checkTransaction(
-        address to,
-        uint256 value,
-        bytes memory data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        // solhint-disable-next-line no-unused-vars
-        address payable refundReceiver,
+        GnosisSafe.TxLocalParams memory params,
         bytes memory,
         address
     ) external override {
@@ -50,10 +42,12 @@ contract DebugTransactionGuard is Guard {
         {
             GnosisSafe safe = GnosisSafe(payable(msg.sender));
             nonce = safe.nonce() - 1;
-            txHash = safe.getTransactionHash(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce);
+            txHash = safe.getTransactionHash(
+                params
+            );
         }
-        emit TransactionDetails(msg.sender, txHash, to, value, data, operation, safeTxGas, gasPrice > 0, nonce);
-        txNonces[txHash] = nonce;
+        emit TransactionDetails(msg.sender, txHash, params.to, params.value, params.data, params.operation, params.safeTxGas, params.gasPrice > 0, params.nonce);
+        txNonces[txHash] = params.nonce;
     }
 
     function checkAfterExecution(bytes32 txHash, bool success) external override {

@@ -58,7 +58,9 @@ describe("GnosisSafeHenesis", async () => {
       const tx = buildSafeTransaction(txParams);
       const message = await safeSignMessage(user1, safe, tx);
       await safe.execTransaction(txParams, message.data);
-      await safe.execTransaction(txParams, message.data);
+      await expect(
+        safe.execTransaction(txParams, message.data)
+      ).to.be.revertedWith('USED NONCE');
     });
 
     it("should emit event without initializing", async () => {
@@ -69,7 +71,6 @@ describe("GnosisSafeHenesis", async () => {
       await expect(
         await factory.predictProxyAddress(singleton.address, initCode, saltNonce)
       ).to.be.eq(proxyAddress);
-      console.log(proxyAddress);
     });
   });
 });

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
+pragma abicoder v2;
 
 import "../../common/Enum.sol";
 import "../../base/GuardManager.sol";
@@ -19,20 +20,11 @@ contract DelegateCallTransactionGuard is Guard {
     }
 
     function checkTransaction(
-        address to,
-        uint256,
-        bytes memory,
-        Enum.Operation operation,
-        uint256,
-        uint256,
-        uint256,
-        address,
-        // solhint-disable-next-line no-unused-vars
-        address payable,
+        GnosisSafe.TxLocalParams memory params,
         bytes memory,
         address
     ) external view override {
-        require(operation != Enum.Operation.DelegateCall || to == allowedTarget, "This call is restricted");
+        require(params.operation != Enum.Operation.DelegateCall || params.to == allowedTarget, "This call is restricted");
     }
 
     function checkAfterExecution(bytes32, bool) external view override {}

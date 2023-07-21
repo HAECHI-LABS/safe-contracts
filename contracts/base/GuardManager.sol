@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
+pragma abicoder v2;
 
 import "../common/Enum.sol";
 import "../common/SelfAuthorized.sol";
+import "../GnosisSafe.sol";
 
 interface Guard {
     function checkTransaction(
-        address to,
-        uint256 value,
-        bytes memory data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address payable refundReceiver,
+        GnosisSafe.TxLocalParams memory params,
         bytes memory signatures,
         address msgSender
     ) external;
