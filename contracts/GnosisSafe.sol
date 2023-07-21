@@ -56,7 +56,7 @@ GuardManager
     // Mapping to keep track of all hashes (message or transaction) that have been approve by ANY owners
     mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
 
-    mapping(uint256 => uint256) isUsedNonce;
+    mapping(uint256 => uint256) isUsedNonceMap;
 
     // This constructor ensures that this contract can only be used as a master copy for Proxy contracts
     constructor() {
@@ -131,7 +131,7 @@ GuardManager
         TxLocalParams memory params,
         bytes memory signatures
     ) public payable virtual returns (bool success) {
-        uint256 storageNonce = isUsedNonce[params.nonce/256];
+        uint256 storageNonce = isUsedNonceMap[params.nonce/256];
         require(storageNonce&(1<<(params.nonce%256)) == 0, "USED NONCE");
 
         bytes32 txHash;
@@ -141,7 +141,7 @@ GuardManager
             encodeTransactionData(
                 params
             );
-            isUsedNonce[params.nonce/256] = storageNonce|(1<<(params.nonce%256));
+            isUsedNonceMap[params.nonce/256] = storageNonce|(1<<(params.nonce%256));
             txHash = keccak256(txHashData);
             checkSignatures(txHash, txHashData, signatures);
         }
@@ -396,9 +396,7 @@ GuardManager
     ) public view returns (bytes32) {
         return keccak256(encodeTransactionData(params));
     }
-
-    function canUseNonce(uint256 _nonce) public view returns (bool){
-        uint256 storageNonce = isUsedNonce[_nonce/256];
-        return storageNonce&(1<<(_nonce%256)) == 0;
+    function isUsedNonce(uint256 nonce) public view returns(bool) {
+        return (isUsedNonceMap[nonce/256] & (1<<(nonce%256))) == 1;
     }
 }
