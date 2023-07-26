@@ -8,17 +8,10 @@ import {
 import { ethers } from "ethers";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const SAFE_ADDRESS = "0x7dfcFe2a69e8d2D2b3d44b05AE8df41550C8F673";
-const SINGLETON_ADDRESS = "0xD0E7FA58BF4A542ab4556d74a7028fC7b626456e";
-// bora: 0xefCb880455965930caab77edE0B1454C2A749762
-// cypress: 0xD0E7FA58BF4A542ab4556d74a7028fC7b626456e
-// polygon mainnet: 0x597570EE4C33585a2687ACe9245cB598F77294a9
-
-const PROXY_FACTORY_ADDRESS = "0x349Eb6c7f0e9C03534763dD19A4172BdB7f968E1";
-// bora: 0xae04c601F48e449574310E9330ffA00403a759BA
-// cypress : 0x349Eb6c7f0e9C03534763dD19A4172BdB7f968E1
-// klaytn baobab: 0xc22834581ebc8527d974f8a1c97e1bea4ef910bc
-// polygon mainnet: 0x2f2aD74C62D3F9A9d7d43b14b90dC6D7Feb2Ab23
+const SAFE_ADDRESS = "0x0000000000000000000000000000000000000000";
+const SINGLETON_ADDRESS = "0x0000000000000000000000000000000000000000";
+const PROXY_FACTORY_ADDRESS = "0x0000000000000000000000000000000000000000";
+const FALLBACK_HANDLER_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const txParams = {
   to: "0x...",
@@ -55,6 +48,14 @@ task("deploy-singleton").setAction(async ({}, hre) => {
   console.log("gnosisSafeL2 deployed to:", gnosisSafeL2.address);
 });
 
+task("deploy-fallback-handler").setAction(async ({}, hre) => {
+  const [deployer] = await hre.ethers.getSigners();
+  const fallbackHandlerL2Factory = await hre.ethers.getContractFactory("CompatibilityFallbackHandler", deployer);
+  const fallbackHandler = await fallbackHandlerL2Factory.connect(deployer).deploy();
+  await fallbackHandler.deployed();
+  console.log("fallbackHandler deployed to:", fallbackHandler.address);
+});
+
 task("deploy-safe", "")
   .setAction(async (_, hre) => {
     const [deployer] = await hre.ethers.getSigners();
@@ -64,10 +65,7 @@ task("deploy-safe", "")
       1,
       ZERO_ADDRESS,
       "0x",
-      ZERO_ADDRESS, // fallback handler
-      // cypress: 0xf48f2b2d2a534e402487b3ee7c18c33aec0fe5e4
-      // baobab: 0x017062a1de2fe6b99be3d9d37841fed19f573804
-      // polygon mainnet: 0xf48f2b2d2a534e402487b3ee7c18c33aec0fe5e4
+      FALLBACK_HANDLER_ADDRESS,
       ZERO_ADDRESS,
       0,
       ZERO_ADDRESS
