@@ -5,21 +5,14 @@ const deploy: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment,
 ) {
   const { deployments, getNamedAccounts } = hre;
-  const { deployer } = await getNamedAccounts();
+  const { deployer, salt } = await getNamedAccounts();
   const { deploy } = deployments;
-
-  await deploy("DefaultCallbackHandler", {
-    from: deployer,
-    args: [],
-    log: true,
-    deterministicDeployment: true,
-  });
 
   await deploy("CompatibilityFallbackHandler", {
     from: deployer,
     args: [],
     log: true,
-    deterministicDeployment: true,
+    deterministicDeployment: salt,
   });
 };
 
