@@ -44,7 +44,28 @@ import "./src/tasks/misc"
 const primarySolidityVersion = SOLIDITY_VERSION || "0.7.6"
 const soliditySettings = !!SOLIDITY_SETTINGS ? JSON.parse(SOLIDITY_SETTINGS) : undefined
 
+// for deterministic deployment.
+// ./src/deploy 패키지 참고
+const SALT = '0x0000000000000000000000000000000000000000';
+
 const userConfig: HardhatUserConfig = {
+  deterministicDeployment: {
+    "77001": { // bora mainnet
+      factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
+    },
+    "8217": { // klaytn mainnet
+      factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
+    },
+    "1": { // ethereum mainnet
+      factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
+    },
+    "137": { // polygon mainnet
+      factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
+    },
+    "80001": { // polygon testnet
+      factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
+    }
+  },
   paths: {
     artifacts: "build/artifacts",
     cache: "build/cache",
@@ -77,6 +98,10 @@ const userConfig: HardhatUserConfig = {
     matic: {
       ...sharedNetworkConfig,
       url: `https://polygon-mainnet.infura.io/v3/4feb1e5949df453fa6326d4328fe5b80`,
+    },
+    mumbai: {
+      ...sharedNetworkConfig,
+      url: `https://rpc-mumbai.matic.today`,
     },
     cypress: {
       ...sharedNetworkConfig,
@@ -120,6 +145,7 @@ const userConfig: HardhatUserConfig = {
   },
   namedAccounts: {
     deployer: 0,
+    salt: SALT,
   },
   mocha: {
     timeout: 2000000,
