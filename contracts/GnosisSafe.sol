@@ -86,7 +86,7 @@ GuardManager
         address payable paymentReceiver
     ) external {
         // setupOwners checks if the Threshold is already set, therefore preventing that this method is called twice
-        setupOwners(_owners, _threshold);
+        _setupOwners(_owners, _threshold);
         if (fallbackHandler != address(0)) internalSetFallbackHandler(fallbackHandler);
         // As setupOwners can only be called if the contract has not been initialized we don't need a check for setupModules
         setupModules(to, data);
