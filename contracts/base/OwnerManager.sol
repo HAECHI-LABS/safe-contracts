@@ -54,54 +54,16 @@ contract OwnerManager is SelfAuthorized {
         // There has to be at least one Safe owner.
         require(_threshold >= 1, "GS202");
 
-        // 1. Get current owners
-        address[] memory currentOwners = getOwners();
-
-        // 2. Remove owners until one is left
-        uint256 tempThreshold = threshold;  // Store the current threshold
-        while (ownerCount > 1) {
-            address targetOwner = currentOwners[currentOwners.length - 1];
-            uint256 targetIndex = 0;
-            address prevOwner = SENTINEL_OWNERS;
-            for (uint256 i = 0; i < currentOwners.length; i++) {
-                if (currentOwners[i] == targetOwner) {
-                    targetIndex = i;
-                    break;
-                }
-            }
-            prevOwner = targetIndex == 0 ? SENTINEL_OWNERS : currentOwners[targetIndex-1];
-
-            // Set a temporary threshold for removing owners safely
-            if (tempThreshold > ownerCount - 1) {
-                tempThreshold = ownerCount - 1;
-            }
-
-            removeOwner(prevOwner, targetOwner, tempThreshold);
-            tempThreshold = threshold;  // Update the temporary threshold
-            currentOwners = getOwners();
+        address currentOwner = SENTINEL_OWNERS;
+        while(owners[currentOwner] != address(0)) {
+            address owner = owners[currentOwner];
+            owners[currentOwner] = address(0);
+            currentOwner = owner;
         }
+        ownerCount = 0;
+        threshold = 0;
 
-        // 3. Swap the last remaining owner with the first new owner
-        if (currentOwners[0] != _owners[0]) {
-            swapOwner(SENTINEL_OWNERS, currentOwners[0], _owners[0]);
-        }
-        // 4. Add all the other new owners
-        for (uint256 i = 1; i < _owners.length; i++) {
-            if (owners[_owners[i]] != address(0)){
-                continue;
-            }
-            // Set a temporary threshold for adding owners safely
-            if (tempThreshold > ownerCount) {
-                tempThreshold = ownerCount;
-            }
-
-            addOwnerWithThreshold(_owners[i], tempThreshold);
-            tempThreshold = threshold;  // Update the temporary threshold
-        }
-
-        // 5. Set the new threshold after adding all new owners
-        changeThreshold(_threshold);
-
+        _setupOwners(_owners, _threshold);
         emit SetupOwners(_owners, _threshold);
     }
 
