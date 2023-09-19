@@ -9,6 +9,7 @@ contract OwnerManager is SelfAuthorized {
     event AddedOwner(address owner);
     event RemovedOwner(address owner);
     event ChangedThreshold(uint256 threshold);
+    event SetupOwners(address[] owners, uint256 threshold);
 
     address internal constant SENTINEL_OWNERS = address(0x1);
 
@@ -19,7 +20,7 @@ contract OwnerManager is SelfAuthorized {
     /// @dev Setup function sets initial storage of contract.
     /// @param _owners List of Safe owners.
     /// @param _threshold Number of required confirmations for a Safe transaction.
-    function setupOwners(address[] memory _owners, uint256 _threshold) internal {
+    function _setupOwners(address[] memory _owners, uint256 _threshold) internal {
         // Threshold can only be 0 at initialization.
         // Check ensures that setup function can only be called once.
         require(threshold == 0, "GS200");
@@ -41,6 +42,29 @@ contract OwnerManager is SelfAuthorized {
         owners[currentOwner] = SENTINEL_OWNERS;
         ownerCount = _owners.length;
         threshold = _threshold;
+    }
+
+    /// @dev Change owners at once
+    /// @param _owners List of Safe owners.
+    /// @param _threshold Number of required confirmations for a Safe transaction.
+    function setupOwners(address[] calldata _owners, uint256 _threshold) public authorized {
+        require(threshold != 0, "GS206");
+        // Validate that threshold is smaller than number of added owners.
+        require(_threshold <= _owners.length, "GS201");
+        // There has to be at least one Safe owner.
+        require(_threshold >= 1, "GS202");
+
+        address currentOwner = SENTINEL_OWNERS;
+        while(owners[currentOwner] != address(0)) {
+            address owner = owners[currentOwner];
+            owners[currentOwner] = address(0);
+            currentOwner = owner;
+        }
+        ownerCount = 0;
+        threshold = 0;
+
+        _setupOwners(_owners, _threshold);
+        emit SetupOwners(_owners, _threshold);
     }
 
     /// @dev Allows to add a new owner to the Safe and update the threshold at the same time.

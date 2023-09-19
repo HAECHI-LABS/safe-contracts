@@ -52,19 +52,19 @@ const userConfig: HardhatUserConfig = {
   deterministicDeployment: {
     "77001": { // bora mainnet
       factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
-    },
+    } as any,
     "8217": { // klaytn mainnet
       factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
-    },
+    } as any,
     "1": { // ethereum mainnet
       factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
-    },
+    } as any,
     "137": { // polygon mainnet
       factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
-    },
+    } as any,
     "80001": { // polygon testnet
       factory: "0x143b9050fb0cc03d2316cdca9442e2765d534243"
-    }
+    } as any
   },
   paths: {
     artifacts: "build/artifacts",
