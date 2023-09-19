@@ -47,7 +47,7 @@ contract OwnerManager is SelfAuthorized {
     /// @dev Change owners at once
     /// @param _owners List of Safe owners.
     /// @param _threshold Number of required confirmations for a Safe transaction.
-    function setupOwners(address[] memory _owners, uint256 _threshold) public authorized {
+    function setupOwners(address[] calldata _owners, uint256 _threshold) public authorized {
         require(threshold != 0, "GS206");
         // Validate that threshold is smaller than number of added owners.
         require(_threshold <= _owners.length, "GS201");
